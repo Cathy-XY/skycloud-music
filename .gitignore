@@ -18,5 +18,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Env files (contain secrets)
+.env
+backend/.env
+
 # Music files (too large for git)
 music/*.mp3

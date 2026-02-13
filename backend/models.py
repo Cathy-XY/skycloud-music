@@ -1,7 +1,8 @@
 import re
 import os
+import tempfile
 from database import get_db
-from config import MUSIC_DIR
+from config import MUSIC_DIR, STORAGE_TYPE
 
 
 def parse_filename(filename):
@@ -18,6 +19,13 @@ def parse_filename(filename):
 
 
 def scan_songs():
+    if STORAGE_TYPE in ('oss', 'bos'):
+        _scan_songs_cloud()
+    else:
+        _scan_songs_local()
+
+
+def _scan_songs_local():
     if not os.path.isdir(MUSIC_DIR):
         return
     conn = get_db()
@@ -42,10 +50,52 @@ def scan_songs():
             )
             row = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
             song_id = row['id']
-        # Auto-extract LRC lyrics from MP3 if lyrics table is empty for this song
         has_lyrics = conn.execute("SELECT id FROM lyrics WHERE song_id = ?", (song_id,)).fetchone()
         if not has_lyrics:
             lrc = extract_lrc_from_mp3(os.path.join(MUSIC_DIR, fname))
+            if lrc:
+                conn.execute(
+                    "INSERT INTO lyrics (song_id, content) VALUES (?, ?)",
+                    (song_id, lrc)
+                )
+    conn.commit()
+    conn.close()
+
+
+def _scan_songs_cloud():
+    from storage import list_cloud_songs, download_from_cloud
+    filenames = list_cloud_songs()
+    conn = get_db()
+    for fname in filenames:
+        existing = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
+        if existing:
+            song_id = existing['id']
+        else:
+            title, artist = parse_filename(fname)
+            duration = 0
+            tmp_path = os.path.join(tempfile.gettempdir(), 'cloud_scan', fname)
+            try:
+                download_from_cloud(fname, tmp_path)
+                from mutagen.mp3 import MP3
+                audio = MP3(tmp_path)
+                duration = audio.info.length
+            except Exception:
+                pass
+            conn.execute(
+                "INSERT INTO songs (title, artist, filename, duration) VALUES (?, ?, ?, ?)",
+                (title, artist, fname, duration)
+            )
+            row = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
+            song_id = row['id']
+        has_lyrics = conn.execute("SELECT id FROM lyrics WHERE song_id = ?", (song_id,)).fetchone()
+        if not has_lyrics:
+            tmp_path = os.path.join(tempfile.gettempdir(), 'cloud_scan', fname)
+            if not os.path.exists(tmp_path):
+                try:
+                    download_from_cloud(fname, tmp_path)
+                except Exception:
+                    continue
+            lrc = extract_lrc_from_mp3(tmp_path)
             if lrc:
                 conn.execute(
                     "INSERT INTO lyrics (song_id, content) VALUES (?, ?)",
