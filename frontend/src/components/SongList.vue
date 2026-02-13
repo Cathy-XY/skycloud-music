@@ -6,14 +6,15 @@
       class="song-item"
       :class="{ active: playerStore.currentSong?.id === song.id }"
     >
-      <button class="btn-icon" @click="play(song)">
-        {{ playerStore.currentSong?.id === song.id && playerStore.isPlaying ? '⏸' : '▶' }}
-      </button>
+      <div class="song-cover">♪</div>
       <div class="song-info" @click="goDetail(song)">
         <span class="song-title">{{ song.title }}</span>
         <span class="song-artist">{{ song.artist }}</span>
       </div>
       <span class="song-duration">{{ formatDuration(song.duration) }}</span>
+      <button class="btn-icon" @click="play(song)">
+        {{ playerStore.currentSong?.id === song.id && playerStore.isPlaying ? '⏸' : '▶' }}
+      </button>
     </div>
   </div>
 </template>

@@ -10,8 +10,10 @@
         {{ playerStore.currentSong?.id === song.id && playerStore.isPlaying ? '⏸ Pause' : '▶ Play' }}
       </button>
     </div>
-    <LyricsEditor :songId="song.id" />
-    <CommentSection :songId="song.id" />
+    <div class="song-detail-layout">
+      <LyricsEditor :songId="song.id" />
+      <CommentSection :songId="song.id" />
+    </div>
   </div>
   <div v-else class="page">
     <p>Loading...</p>

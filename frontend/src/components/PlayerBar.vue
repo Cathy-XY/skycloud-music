@@ -7,6 +7,7 @@
       @loadedmetadata="onLoaded"
       @ended="store.nextSong()"
     ></audio>
+    <div class="player-cover">♪</div>
     <div class="player-info">
       <span class="player-title">{{ store.currentSong.title }}</span>
       <span class="player-artist">{{ store.currentSong.artist }}</span>

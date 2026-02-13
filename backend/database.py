@@ -54,6 +54,18 @@ CREATE TABLE IF NOT EXISTS messages (
 CREATE INDEX IF NOT EXISTS idx_comments_song_id ON comments(song_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_lyrics_song_id ON lyrics(song_id);
+
+CREATE TABLE IF NOT EXISTS line_comments (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    song_id     INTEGER NOT NULL REFERENCES songs(id),
+    line_index  INTEGER NOT NULL,
+    line_text   TEXT    NOT NULL,
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    content     TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_line_comments_song ON line_comments(song_id, line_index);
 """
 
 

@@ -26,21 +26,53 @@ def scan_songs():
             continue
         existing = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
         if existing:
-            continue
-        title, artist = parse_filename(fname)
-        duration = 0
-        try:
-            from mutagen.mp3 import MP3
-            audio = MP3(os.path.join(MUSIC_DIR, fname))
-            duration = audio.info.length
-        except Exception:
-            pass
-        conn.execute(
-            "INSERT INTO songs (title, artist, filename, duration) VALUES (?, ?, ?, ?)",
-            (title, artist, fname, duration)
-        )
+            song_id = existing['id']
+        else:
+            title, artist = parse_filename(fname)
+            duration = 0
+            try:
+                from mutagen.mp3 import MP3
+                audio = MP3(os.path.join(MUSIC_DIR, fname))
+                duration = audio.info.length
+            except Exception:
+                pass
+            conn.execute(
+                "INSERT INTO songs (title, artist, filename, duration) VALUES (?, ?, ?, ?)",
+                (title, artist, fname, duration)
+            )
+            row = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
+            song_id = row['id']
+        # Auto-extract LRC lyrics from MP3 if lyrics table is empty for this song
+        has_lyrics = conn.execute("SELECT id FROM lyrics WHERE song_id = ?", (song_id,)).fetchone()
+        if not has_lyrics:
+            lrc = extract_lrc_from_mp3(os.path.join(MUSIC_DIR, fname))
+            if lrc:
+                conn.execute(
+                    "INSERT INTO lyrics (song_id, content) VALUES (?, ?)",
+                    (song_id, lrc)
+                )
     conn.commit()
     conn.close()
+
+
+def extract_lrc_from_mp3(filepath):
+    try:
+        from mutagen.id3 import ID3
+        tags = ID3(filepath)
+        # Check standard USLT tag first
+        for key in tags:
+            if key.startswith('USLT'):
+                text = str(tags[key])
+                if '[' in text and ']' in text:
+                    return text
+        # Check non-standard TEXT tag (some files put LRC here)
+        if 'TEXT' in tags:
+            text = str(tags['TEXT'])
+            if '[' in text and ']' in text:
+                return text
+    except Exception:
+        pass
+    return None
 
 
 # --- User queries ---
@@ -201,3 +233,56 @@ def create_message(user_id, content):
     """).fetchone()
     conn.close()
     return dict(msg) if msg else None
+
+
+# --- Line comment queries ---
+
+def get_line_comments(song_id, line_index):
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT lc.id, lc.line_index, lc.line_text, lc.content, lc.created_at,
+               u.nickname, u.id as user_id
+        FROM line_comments lc JOIN users u ON lc.user_id = u.id
+        WHERE lc.song_id = ? AND lc.line_index = ?
+        ORDER BY lc.created_at DESC
+    """, (song_id, line_index)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def create_line_comment(song_id, line_index, line_text, user_id, content):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO line_comments (song_id, line_index, line_text, user_id, content) VALUES (?, ?, ?, ?, ?)",
+        (song_id, line_index, line_text, user_id, content)
+    )
+    conn.commit()
+    row = conn.execute("""
+        SELECT lc.id, lc.line_index, lc.line_text, lc.content, lc.created_at,
+               u.nickname, u.id as user_id
+        FROM line_comments lc JOIN users u ON lc.user_id = u.id
+        WHERE lc.id = last_insert_rowid()
+    """).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_all_line_comments(song_id):
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT lc.id, lc.line_index, lc.line_text, lc.content, lc.created_at,
+               u.nickname, u.id as user_id
+        FROM line_comments lc JOIN users u ON lc.user_id = u.id
+        WHERE lc.song_id = ?
+        ORDER BY lc.line_index, lc.created_at DESC
+    """, (song_id,)).fetchall()
+    conn.close()
+    # Group by line_index
+    grouped = {}
+    for r in rows:
+        d = dict(r)
+        idx = d['line_index']
+        if idx not in grouped:
+            grouped[idx] = []
+        grouped[idx].append(d)
+    return grouped

@@ -1,21 +1,25 @@
 <template>
   <div class="lyrics-editor">
-    <h3>Lyrics</h3>
+    <div class="lyrics-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h3 style="margin:0;">Lyrics</h3>
+      <div>
+        <button v-if="userStore.isLoggedIn && !editing" class="btn btn-sm" @click="startEdit">
+          {{ lyrics.content ? 'Edit' : 'Add Lyrics' }}
+        </button>
+      </div>
+    </div>
     <div v-if="!editing" class="lyrics-view">
-      <pre v-if="lyrics.content" class="lyrics-text">{{ lyrics.content }}</pre>
+      <LyricsLineView v-if="lyrics.content" :songId="songId" :lyricsContent="lyrics.content" />
       <p v-else class="empty">No lyrics yet</p>
       <div class="lyrics-meta" v-if="lyrics.edited_by_name">
         Last edited by {{ lyrics.edited_by_name }} at {{ lyrics.updated_at }}
       </div>
-      <button v-if="userStore.isLoggedIn" class="btn btn-sm" @click="startEdit">
-        {{ lyrics.content ? 'Edit Lyrics' : 'Add Lyrics' }}
-      </button>
-      <p v-else class="login-hint">
-        <router-link to="/login">Login</router-link> to edit lyrics
+      <p v-if="!userStore.isLoggedIn && !lyrics.content" class="login-hint">
+        <router-link to="/login">Login</router-link> to add lyrics
       </p>
     </div>
     <div v-else class="lyrics-edit">
-      <textarea v-model="editContent" rows="12" placeholder="Enter lyrics here..."></textarea>
+      <textarea v-model="editContent" rows="15" placeholder="Paste LRC lyrics or plain text..."></textarea>
       <div class="lyrics-actions">
         <button class="btn btn-primary" @click="save">Save</button>
         <button class="btn" @click="cancelEdit">Cancel</button>
@@ -28,6 +32,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useUserStore } from '../stores/user.js'
 import { getLyrics, saveLyrics } from '../api/lyrics.js'
+import LyricsLineView from './LyricsLineView.vue'
 
 const props = defineProps({ songId: [Number, String] })
 const userStore = useUserStore()
