@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     username    TEXT    NOT NULL UNIQUE,
     password    TEXT    NOT NULL,
     nickname    TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
 CREATE TABLE IF NOT EXISTS songs (
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS songs (
     artist      TEXT    NOT NULL DEFAULT 'Unknown',
     filename    TEXT    NOT NULL UNIQUE,
     duration    REAL    DEFAULT 0,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
 CREATE TABLE IF NOT EXISTS comments (
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS comments (
     song_id     INTEGER NOT NULL REFERENCES songs(id),
     user_id     INTEGER NOT NULL REFERENCES users(id),
     content     TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
 CREATE TABLE IF NOT EXISTS lyrics (
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS lyrics (
     song_id     INTEGER NOT NULL UNIQUE REFERENCES songs(id),
     content     TEXT    NOT NULL DEFAULT '',
     edited_by   INTEGER REFERENCES users(id),
-    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
 CREATE TABLE IF NOT EXISTS lyrics_history (
@@ -41,14 +41,14 @@ CREATE TABLE IF NOT EXISTS lyrics_history (
     song_id     INTEGER NOT NULL REFERENCES songs(id),
     user_id     INTEGER NOT NULL REFERENCES users(id),
     content     TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
 CREATE TABLE IF NOT EXISTS messages (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id     INTEGER NOT NULL REFERENCES users(id),
     content     TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_comments_song_id ON comments(song_id);
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS line_comments (
     line_text   TEXT    NOT NULL,
     user_id     INTEGER NOT NULL REFERENCES users(id),
     content     TEXT    NOT NULL,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_line_comments_song ON line_comments(song_id, line_index);

@@ -13,3 +13,13 @@ export async function getSong(id) {
 export function getStreamUrl(id) {
   return `/api/songs/${id}/stream`
 }
+
+export async function getStreamSignedUrl(id) {
+  const { data } = await api.get(`/songs/${id}/stream-url`)
+  return data.url
+}
+
+export async function refreshSongs() {
+  const { data } = await api.post('/songs/refresh')
+  return data
+}

@@ -11,6 +11,14 @@ socketio = None
 online_users = {}
 
 
+def _unique_online_count():
+    """按 user_id 去重计算在线人数"""
+    seen = set()
+    for u in online_users.values():
+        seen.add(u['id'])
+    return len(seen)
+
+
 def init_socketio(sio):
     global socketio
     socketio = sio
@@ -30,17 +38,21 @@ def init_socketio(sio):
                 return False
             online_users[req.sid] = user
             sio.emit('user_joined', {'nickname': user['nickname']})
-            sio.emit('online_count', {'count': len(online_users)})
+            sio.emit('online_count', {'count': _unique_online_count()})
         except jwt.InvalidTokenError:
             return False
 
     @sio.on('disconnect')
     def handle_disconnect():
         from flask import request as req
+        # Clean up listen-together room first
+        from routes.listen_together import cleanup_listen_room
+        cleanup_listen_room(req.sid)
+        # Then clean up chat online users
         user = online_users.pop(req.sid, None)
         if user:
             sio.emit('user_left', {'nickname': user['nickname']})
-            sio.emit('online_count', {'count': len(online_users)})
+            sio.emit('online_count', {'count': _unique_online_count()})
 
     @sio.on('send_message')
     def handle_message(data):

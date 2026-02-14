@@ -8,6 +8,7 @@ export const usePlayerStore = defineStore('player', () => {
   const currentTime = ref(0)
   const duration = ref(0)
   const volume = ref(0.8)
+  const playMode = ref('sequence') // 'sequence' | 'repeat' | 'shuffle'
 
   const currentSong = computed(() => {
     if (currentIndex.value >= 0 && currentIndex.value < playlist.value.length) {
@@ -35,15 +36,45 @@ export const usePlayerStore = defineStore('player', () => {
     isPlaying.value = !isPlaying.value
   }
 
+  function toggleMode() {
+    const modes = ['sequence', 'repeat', 'shuffle']
+    const i = modes.indexOf(playMode.value)
+    playMode.value = modes[(i + 1) % modes.length]
+  }
+
   function nextSong() {
     if (playlist.value.length === 0) return
-    currentIndex.value = (currentIndex.value + 1) % playlist.value.length
+    if (playMode.value === 'shuffle') {
+      if (playlist.value.length === 1) {
+        isPlaying.value = true
+        return
+      }
+      let next
+      do {
+        next = Math.floor(Math.random() * playlist.value.length)
+      } while (next === currentIndex.value)
+      currentIndex.value = next
+    } else {
+      currentIndex.value = (currentIndex.value + 1) % playlist.value.length
+    }
     isPlaying.value = true
   }
 
   function prevSong() {
     if (playlist.value.length === 0) return
-    currentIndex.value = (currentIndex.value - 1 + playlist.value.length) % playlist.value.length
+    if (playMode.value === 'shuffle') {
+      if (playlist.value.length === 1) {
+        isPlaying.value = true
+        return
+      }
+      let next
+      do {
+        next = Math.floor(Math.random() * playlist.value.length)
+      } while (next === currentIndex.value)
+      currentIndex.value = next
+    } else {
+      currentIndex.value = (currentIndex.value - 1 + playlist.value.length) % playlist.value.length
+    }
     isPlaying.value = true
   }
 
@@ -56,7 +87,7 @@ export const usePlayerStore = defineStore('player', () => {
   }
 
   return {
-    playlist, currentIndex, isPlaying, currentTime, duration, volume,
-    currentSong, setPlaylist, playSong, togglePlay, nextSong, prevSong, setVolume, seek
+    playlist, currentIndex, isPlaying, currentTime, duration, volume, playMode,
+    currentSong, setPlaylist, playSong, togglePlay, toggleMode, nextSong, prevSong, setVolume, seek
   }
 })

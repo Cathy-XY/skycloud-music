@@ -117,7 +117,6 @@ body {
   box-shadow: inset 0 -5px 10px rgba(135,206,250,0.08);
 }
 
-/* Large distant cloud (background, more transparent) */
 .cloud-5 {
   width: 220px; height: 65px;
   top: 35%; left: -280px;
@@ -135,7 +134,6 @@ body {
   box-shadow: inset 0 -12px 22px rgba(135,206,250,0.08);
 }
 
-/* Small close cloud (foreground, sharper) */
 .cloud-6 {
   width: 70px; height: 24px;
   top: 82%; left: -100px;
@@ -153,7 +151,6 @@ body {
   box-shadow: inset 0 -4px 8px rgba(135,206,250,0.12);
 }
 
-/* Each cloud has a slight vertical bob for depth */
 @keyframes floatCloud1 {
   0%   { transform: translateX(0) translateY(0); }
   25%  { transform: translateX(calc(25vw + 75px)) translateY(-8px); }
@@ -198,33 +195,54 @@ a:hover {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-/* ---- Buttons ---- */
+/* ============================================================
+   Buttons — 3D raised style
+   ============================================================ */
 .btn {
   display: inline-block;
   padding: 8px 18px;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.12) 100%);
   backdrop-filter: blur(8px);
   color: #fff;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s;
+  transition: all 0.25s;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.35),
+    0 2px 6px rgba(0,0,0,0.12),
+    0 1px 2px rgba(0,0,0,0.08);
 }
 .btn:hover {
-  background: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 0 20px rgba(79, 172, 254, 0.3);
+  background: linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.2) 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.4),
+    0 4px 16px rgba(79, 172, 254, 0.3),
+    0 2px 4px rgba(0,0,0,0.1);
   transform: translateY(-1px);
 }
+.btn:active {
+  transform: translateY(0.5px);
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,0.1),
+    0 1px 2px rgba(0,0,0,0.1);
+}
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--sky-top));
-  border-color: transparent;
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+  border-color: rgba(255,255,255,0.2);
   color: #fff;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.3),
+    inset 0 -1px 2px rgba(0,0,0,0.1),
+    0 2px 8px rgba(59,130,246,0.4);
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--primary-light), var(--sky-bottom));
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.5);
+  background: linear-gradient(180deg, #93c5fd 0%, #60a5fa 50%, #3b82f6 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.35),
+    0 4px 20px rgba(59, 130, 246, 0.5);
 }
 .btn-sm {
   padding: 5px 14px;
@@ -242,26 +260,64 @@ a:hover {
   font-size: 18px;
   padding: 6px 10px;
   border-radius: 50%;
-  transition: all 0.3s;
+  transition: all 0.25s;
 }
 .btn-icon:hover {
   background: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
 }
+
+/* --- Play Button (3D raised circle, CSS triangle) --- */
 .btn-play {
-  font-size: 28px;
-  width: 48px;
-  height: 48px;
+  font-size: 0;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary), var(--sky-top));
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 45%, #2563eb 100%);
+  border: 1.5px solid rgba(255,255,255,0.25);
   border-radius: 50%;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.35),
+    inset 0 -2px 4px rgba(0,0,0,0.15),
+    0 4px 16px rgba(59, 130, 246, 0.5),
+    0 2px 4px rgba(0,0,0,0.15);
+  position: relative;
+}
+.btn-play::after {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 9px 0 9px 16px;
+  border-color: transparent transparent transparent #fff;
+  margin-left: 3px;
+}
+.btn-play.is-paused::after {
+  /* 暂停状态: 两条竖线 */
+  border: none;
+  width: 14px;
+  height: 16px;
+  margin-left: 0;
+  border-left: 4px solid #fff;
+  border-right: 4px solid #fff;
 }
 .btn-play:hover {
-  box-shadow: 0 4px 25px rgba(59, 130, 246, 0.6);
-  transform: scale(1.05);
+  background: linear-gradient(180deg, #93c5fd 0%, #60a5fa 45%, #3b82f6 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255,255,255,0.4),
+    inset 0 -2px 4px rgba(0,0,0,0.12),
+    0 6px 24px rgba(59, 130, 246, 0.6),
+    0 2px 6px rgba(0,0,0,0.12);
+  transform: scale(1.06);
+}
+.btn-play:active {
+  transform: scale(0.97);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,0.2),
+    0 1px 4px rgba(59, 130, 246, 0.3);
 }
 .btn-back {
   font-size: 22px;
@@ -286,7 +342,10 @@ a:hover {
   top: 0;
   z-index: 100;
 }
-/* ---- Spinning CD Logo ---- */
+
+/* ============================================================
+   Spinning Vinyl Disc (realistic)
+   ============================================================ */
 .logo-link {
   display: flex;
   align-items: center;
@@ -297,62 +356,99 @@ a:hover {
   flex-shrink: 0;
 }
 .cd-disc {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: conic-gradient(
-    #1e293b 0deg, #334155 30deg, #0f172a 60deg, #1e293b 90deg,
-    #334155 120deg, #0f172a 150deg, #1e293b 180deg,
-    #334155 210deg, #0f172a 240deg, #1e293b 270deg,
-    #334155 300deg, #0f172a 330deg, #1e293b 360deg
-  );
+  background:
+    /* 光泽反射 */
+    linear-gradient(
+      135deg,
+      rgba(255,255,255,0.12) 0%,
+      transparent 35%,
+      transparent 65%,
+      rgba(255,255,255,0.06) 100%
+    ),
+    /* 唱片纹路 (groove lines) */
+    repeating-radial-gradient(
+      circle at center,
+      transparent 0px,
+      transparent 2.5px,
+      rgba(80,80,100,0.25) 2.5px,
+      rgba(80,80,100,0.25) 3px
+    ),
+    /* 底色 — 深黑唱片 */
+    radial-gradient(circle, #1a1a2e 28%, #12122a 55%, #0a0a1e 100%);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: spinCD 4s linear infinite;
+  animation: spinCD 3.5s linear infinite;
   box-shadow:
-    0 0 0 2px rgba(255,255,255,0.15),
-    0 0 12px rgba(79,172,254,0.3),
-    inset 0 0 8px rgba(0,0,0,0.4);
+    0 0 0 1.5px rgba(50,50,70,0.9),
+    0 0 0 3px rgba(30,30,50,0.5),
+    0 2px 10px rgba(0,0,0,0.6),
+    inset 0 0 6px rgba(255,255,255,0.04);
 }
+/* 中心 label 区域 — 彩色圆形标签 */
 .cd-disc::before {
   content: '';
   position: absolute;
-  inset: 3px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: conic-gradient(
-    transparent 0deg, rgba(255,255,255,0.06) 30deg, transparent 60deg,
-    rgba(255,255,255,0.04) 90deg, transparent 120deg, rgba(255,255,255,0.06) 180deg,
-    transparent 210deg, rgba(255,255,255,0.04) 270deg, transparent 360deg
-  );
+  background:
+    radial-gradient(circle,
+      rgba(160,190,230,0.9) 0%,
+      rgba(90,140,200,0.85) 40%,
+      rgba(50,90,160,0.7) 80%,
+      rgba(30,60,120,0.5) 100%
+    );
+  box-shadow:
+    inset 0 1px 3px rgba(255,255,255,0.4),
+    inset 0 -1px 2px rgba(0,0,0,0.2),
+    0 0 4px rgba(100,160,220,0.3);
+  z-index: 1;
 }
+/* 唱片表面彩虹反光 */
 .cd-disc::after {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 0;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: radial-gradient(circle, transparent 30%, rgba(255,255,255,0.03) 60%, transparent 80%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(100,180,255,0.06) 30deg,
+    transparent 60deg,
+    rgba(200,150,255,0.05) 120deg,
+    transparent 150deg,
+    rgba(100,255,200,0.04) 210deg,
+    transparent 240deg,
+    rgba(255,200,100,0.05) 300deg,
+    transparent 330deg,
+    transparent 360deg
+  );
+  z-index: 2;
 }
 .cd-hole {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.12);
-  border: 1.5px solid rgba(255,255,255,0.25);
-  z-index: 2;
-  box-shadow: 0 0 4px rgba(79,172,254,0.4);
+  background: linear-gradient(135deg, #aab 0%, #dde 50%, #99a 100%);
+  border: 0.5px solid rgba(0,0,0,0.35);
+  z-index: 3;
+  box-shadow: inset 0 0.5px 1px rgba(255,255,255,0.7);
 }
 .cd-label {
   position: absolute;
-  font-size: 5px;
+  font-size: 4.5px;
   font-weight: 700;
-  color: rgba(255,255,255,0.45);
+  color: rgba(255,255,255,0.55);
   letter-spacing: 0.5px;
   top: 8px;
-  animation: antiSpin 4s linear infinite;
+  animation: antiSpin 3.5s linear infinite;
   pointer-events: none;
+  z-index: 4;
 }
 .cd-label-sub {
   top: auto;
@@ -410,11 +506,16 @@ a:hover {
 
 /* ---- Main ---- */
 .app-main {
-  max-width: 900px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 28px 20px 130px;
   position: relative;
   z-index: 1;
+}
+/* 歌曲列表页窄一点 */
+.home-page {
+  max-width: 520px;
+  margin: 0 auto;
 }
 .page h2 {
   margin-bottom: 24px;
@@ -422,67 +523,177 @@ a:hover {
   font-weight: 700;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.home-header h2 {
+  margin-bottom: 0;
+}
 
-/* ---- Song List ---- */
+/* --- Refresh Button (3D) --- */
+.btn-refresh {
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(99,130,246,0.6) 0%, rgba(99,80,246,0.5) 50%, rgba(79,60,206,0.55) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.5px;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.3),
+    inset 0 -1px 2px rgba(0,0,0,0.1),
+    0 3px 10px rgba(59, 130, 246, 0.25);
+}
+.btn-refresh:hover {
+  background: linear-gradient(180deg, rgba(120,150,255,0.7) 0%, rgba(110,90,255,0.6) 50%, rgba(90,70,226,0.65) 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.35),
+    0 5px 20px rgba(59, 130, 246, 0.35);
+  transform: translateY(-1px);
+}
+.btn-refresh:active {
+  transform: translateY(0.5px);
+  box-shadow:
+    inset 0 2px 4px rgba(0,0,0,0.15),
+    0 1px 3px rgba(59, 130, 246, 0.2);
+}
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ============================================================
+   Song List — compact & 3D card style
+   ============================================================ */
 .song-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .song-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 18px;
-  background: rgba(255, 255, 255, 0.15);
+  gap: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
   cursor: default;
-  transition: all 0.3s;
+  transition: all 0.25s;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.25),
+    0 2px 8px rgba(0,0,0,0.06),
+    0 1px 2px rgba(0,0,0,0.04);
 }
 .song-item:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.16) 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.3),
+    0 6px 20px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0,0,0,0.06);
 }
 .song-item.active {
-  background: linear-gradient(135deg, rgba(59,130,246,0.3), rgba(79,172,254,0.2));
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.2);
+  background: linear-gradient(180deg, rgba(59,130,246,0.35) 0%, rgba(79,172,254,0.2) 100%);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.25),
+    0 4px 16px rgba(59, 130, 246, 0.25);
 }
 .song-cover {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   background: linear-gradient(135deg, var(--sky-top), var(--sunset));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 16px;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
 .song-info {
   flex: 1;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
 }
 .song-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .song-artist {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .song-duration {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+/* 歌曲列表里的播放按钮 — CSS 三角形 */
+.song-play-btn {
+  padding: 0 !important;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.2),
+    0 1px 4px rgba(0,0,0,0.1);
+  transition: all 0.25s;
+  position: relative;
+}
+.song-play-btn::after {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent #fff;
+  margin-left: 2px;
+}
+.song-play-btn.is-paused::after {
+  border: none;
+  width: 10px;
+  height: 12px;
+  margin-left: 0;
+  border-left: 3px solid #fff;
+  border-right: 3px solid #fff;
+}
+.song-play-btn:hover {
+  background: rgba(255,255,255,0.22);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.25),
+    0 2px 8px rgba(59,130,246,0.25);
+  transform: scale(1.08);
 }
 
 /* ---- Song Detail ---- */
@@ -565,6 +776,30 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.btn-mode {
+  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  opacity: 0.7;
+  transition: all 0.25s;
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.15),
+    0 1px 4px rgba(0,0,0,0.1);
+}
+.btn-mode:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,0.2),
+    0 2px 12px rgba(59, 130, 246, 0.3);
+  transform: scale(1.1);
 }
 .player-progress {
   flex: 1;
@@ -870,13 +1105,32 @@ a:hover {
   margin-bottom: 16px;
 }
 .online-badge {
-  font-size: 13px;
-  color: var(--success);
-  background: rgba(34, 197, 94, 0.15);
-  backdrop-filter: blur(4px);
-  padding: 4px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.4), rgba(16, 185, 129, 0.4));
+  backdrop-filter: blur(8px);
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  box-shadow: 0 2px 12px rgba(34, 197, 94, 0.2);
+  letter-spacing: 0.5px;
+}
+.online-badge::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #22c55e;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  animation: online-pulse 2s infinite;
+}
+@keyframes online-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 .chat-messages {
   flex: 1;
@@ -1027,4 +1281,86 @@ a:hover {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.35);
+}
+
+/* ============================================================
+   Listen Together — toggle button
+   ============================================================ */
+.listen-toggle {
+  position: relative;
+  white-space: nowrap;
+  opacity: 0.6;
+  transition: all 0.3s;
+}
+.listen-toggle.active {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(34,197,94,0.5) 0%, rgba(22,163,74,0.45) 100%);
+  border-color: rgba(34,197,94,0.5);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.3),
+    0 2px 12px rgba(34,197,94,0.35);
+}
+.listen-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #4ade80;
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+  box-shadow: 0 0 6px rgba(74,222,128,0.8);
+  animation: online-pulse 2s infinite;
+}
+
+/* ---- HomePage header actions ---- */
+.home-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ============================================================
+   Responsive — mobile
+   ============================================================ */
+@media (max-width: 600px) {
+  .app-header {
+    padding: 10px 14px;
+  }
+  .logo-text {
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+  .header-nav {
+    gap: 14px;
+  }
+  .header-nav a {
+    font-size: 13px;
+  }
+  .app-main {
+    padding: 16px 12px 140px;
+  }
+  .player-bar {
+    padding: 8px 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .player-info {
+    width: 100px;
+  }
+  .player-progress {
+    order: 10;
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .player-volume {
+    display: none;
+  }
+  .home-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .home-header-actions {
+    flex-wrap: wrap;
+  }
 }

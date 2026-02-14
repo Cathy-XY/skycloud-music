@@ -12,9 +12,7 @@
         <span class="song-artist">{{ song.artist }}</span>
       </div>
       <span class="song-duration">{{ formatDuration(song.duration) }}</span>
-      <button class="btn-icon" @click="play(song)">
-        {{ playerStore.currentSong?.id === song.id && playerStore.isPlaying ? '⏸' : '▶' }}
-      </button>
+      <button class="btn-icon song-play-btn" :class="{ 'is-paused': playerStore.currentSong?.id === song.id && playerStore.isPlaying }" @click="play(song)"></button>
     </div>
   </div>
 </template>

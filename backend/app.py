@@ -8,6 +8,7 @@ from routes.songs import songs_bp
 from routes.comments import comments_bp
 from routes.lyrics import lyrics_bp
 from routes.chat import chat_bp, init_socketio
+from routes.listen_together import listen_bp, init_listen_socketio
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -19,9 +20,11 @@ app.register_blueprint(songs_bp, url_prefix='/api/songs')
 app.register_blueprint(comments_bp, url_prefix='/api')
 app.register_blueprint(lyrics_bp, url_prefix='/api')
 app.register_blueprint(chat_bp, url_prefix='/api')
+app.register_blueprint(listen_bp, url_prefix='/api')
 
 # Initialize SocketIO events
 init_socketio(socketio)
+init_listen_socketio(socketio)
 
 # Initialize database and scan songs on startup
 with app.app_context():

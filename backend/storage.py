@@ -36,17 +36,26 @@ def _get_bos_client():
 
 # ========== 统一接口 ==========
 
-def serve_audio(filename):
-    """返回音频文件：本地直接发送，云存储则 302 重定向到签名 URL"""
+def get_signed_url(filename):
+    """获取云存储签名 URL（字符串），本地模式返回 None"""
     if STORAGE_TYPE == 'oss':
         bucket = _get_oss_bucket()
-        url = bucket.sign_url('GET', filename, 3600)
-        return redirect(url)
+        return bucket.sign_url('GET', filename, 3600)
     elif STORAGE_TYPE == 'bos':
         client = _get_bos_client()
         url = client.generate_pre_signed_url(
             BOS_BUCKET, filename, expiration_in_seconds=3600,
         )
+        if isinstance(url, bytes):
+            url = url.decode('utf-8')
+        return url
+    return None
+
+
+def serve_audio(filename):
+    """返回音频文件：本地直接发送，云存储则 302 重定向到签名 URL"""
+    url = get_signed_url(filename)
+    if url:
         return redirect(url)
     return send_from_directory(
         MUSIC_DIR, filename, mimetype='audio/mpeg', conditional=True,

@@ -29,9 +29,8 @@ def _scan_songs_local():
     if not os.path.isdir(MUSIC_DIR):
         return
     conn = get_db()
-    for fname in os.listdir(MUSIC_DIR):
-        if not fname.lower().endswith('.mp3'):
-            continue
+    local_files = [f for f in os.listdir(MUSIC_DIR) if f.lower().endswith('.mp3')]
+    for fname in local_files:
         existing = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
         if existing:
             song_id = existing['id']
@@ -58,6 +57,7 @@ def _scan_songs_local():
                     "INSERT INTO lyrics (song_id, content) VALUES (?, ?)",
                     (song_id, lrc)
                 )
+    _sync_delete_missing(conn, local_files)
     conn.commit()
     conn.close()
 
@@ -101,6 +101,7 @@ def _scan_songs_cloud():
                     "INSERT INTO lyrics (song_id, content) VALUES (?, ?)",
                     (song_id, lrc)
                 )
+    _sync_delete_missing(conn, filenames)
     conn.commit()
     conn.close()
 
@@ -123,6 +124,20 @@ def extract_lrc_from_mp3(filepath):
     except Exception:
         pass
     return None
+
+
+def _sync_delete_missing(conn, existing_filenames):
+    """删除 DB 中存在但文件列表中已不存在的歌曲及其关联数据"""
+    db_songs = conn.execute("SELECT id, filename FROM songs").fetchall()
+    cloud_set = set(existing_filenames)
+    for song in db_songs:
+        if song['filename'] not in cloud_set:
+            sid = song['id']
+            conn.execute("DELETE FROM line_comments WHERE song_id = ?", (sid,))
+            conn.execute("DELETE FROM comments WHERE song_id = ?", (sid,))
+            conn.execute("DELETE FROM lyrics_history WHERE song_id = ?", (sid,))
+            conn.execute("DELETE FROM lyrics WHERE song_id = ?", (sid,))
+            conn.execute("DELETE FROM songs WHERE id = ?", (sid,))
 
 
 # --- User queries ---
@@ -189,7 +204,7 @@ def get_comments_by_song(song_id, page=1, per_page=20):
 
 def create_comment(song_id, user_id, content):
     conn = get_db()
-    conn.execute("INSERT INTO comments (song_id, user_id, content) VALUES (?, ?, ?)",
+    conn.execute("INSERT INTO comments (song_id, user_id, content, created_at) VALUES (?, ?, ?, datetime('now', '+8 hours'))",
                  (song_id, user_id, content))
     conn.commit()
     comment = conn.execute("""
@@ -228,16 +243,16 @@ def save_lyrics(song_id, user_id, content):
     existing = conn.execute("SELECT id FROM lyrics WHERE song_id = ?", (song_id,)).fetchone()
     if existing:
         conn.execute(
-            "UPDATE lyrics SET content = ?, edited_by = ?, updated_at = datetime('now') WHERE song_id = ?",
+            "UPDATE lyrics SET content = ?, edited_by = ?, updated_at = datetime('now', '+8 hours') WHERE song_id = ?",
             (content, user_id, song_id)
         )
     else:
         conn.execute(
-            "INSERT INTO lyrics (song_id, content, edited_by) VALUES (?, ?, ?)",
+            "INSERT INTO lyrics (song_id, content, edited_by, updated_at) VALUES (?, ?, ?, datetime('now', '+8 hours'))",
             (song_id, content, user_id)
         )
     conn.execute(
-        "INSERT INTO lyrics_history (song_id, user_id, content) VALUES (?, ?, ?)",
+        "INSERT INTO lyrics_history (song_id, user_id, content, created_at) VALUES (?, ?, ?, datetime('now', '+8 hours'))",
         (song_id, user_id, content)
     )
     conn.commit()
@@ -274,7 +289,7 @@ def get_messages(page=1, per_page=50):
 
 def create_message(user_id, content):
     conn = get_db()
-    conn.execute("INSERT INTO messages (user_id, content) VALUES (?, ?)", (user_id, content))
+    conn.execute("INSERT INTO messages (user_id, content, created_at) VALUES (?, ?, datetime('now', '+8 hours'))", (user_id, content))
     conn.commit()
     msg = conn.execute("""
         SELECT m.id, m.content, m.created_at, u.nickname, u.id as user_id
@@ -303,7 +318,7 @@ def get_line_comments(song_id, line_index):
 def create_line_comment(song_id, line_index, line_text, user_id, content):
     conn = get_db()
     conn.execute(
-        "INSERT INTO line_comments (song_id, line_index, line_text, user_id, content) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO line_comments (song_id, line_index, line_text, user_id, content, created_at) VALUES (?, ?, ?, ?, ?, datetime('now', '+8 hours'))",
         (song_id, line_index, line_text, user_id, content)
     )
     conn.commit()
