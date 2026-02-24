@@ -30,6 +30,13 @@ def _scan_songs_local():
         return
     conn = get_db()
     local_files = [f for f in os.listdir(MUSIC_DIR) if f.lower().endswith('.mp3')]
+    # 构建 lrc 文件映射：base_name(小写) -> lrc 文件名
+    local_lrc_files = [f for f in os.listdir(MUSIC_DIR) if f.lower().endswith('.lrc')]
+    lrc_map = {}
+    for lrc_fname in local_lrc_files:
+        base = lrc_fname.rsplit('.', 1)[0]
+        lrc_map[base.lower()] = lrc_fname
+
     for fname in local_files:
         existing = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
         if existing:
@@ -50,7 +57,36 @@ def _scan_songs_local():
             row = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
             song_id = row['id']
         has_lyrics = conn.execute("SELECT id FROM lyrics WHERE song_id = ?", (song_id,)).fetchone()
-        if not has_lyrics:
+
+        # 检查同名 .lrc 文件
+        mp3_base = fname.rsplit('.', 1)[0]
+        lrc_key = lrc_map.get(mp3_base.lower())
+
+        if lrc_key:
+            # .lrc 文件优先：读取内容写入歌词
+            try:
+                lrc_path = os.path.join(MUSIC_DIR, lrc_key)
+                try:
+                    with open(lrc_path, 'r', encoding='utf-8') as f:
+                        lrc_content = f.read().strip()
+                except UnicodeDecodeError:
+                    with open(lrc_path, 'r', encoding='gbk') as f:
+                        lrc_content = f.read().strip()
+                if lrc_content:
+                    if has_lyrics:
+                        conn.execute(
+                            "UPDATE lyrics SET content = ?, updated_at = datetime('now', '+8 hours') WHERE song_id = ?",
+                            (lrc_content, song_id)
+                        )
+                    else:
+                        conn.execute(
+                            "INSERT INTO lyrics (song_id, content) VALUES (?, ?)",
+                            (song_id, lrc_content)
+                        )
+            except Exception:
+                pass
+        elif not has_lyrics:
+            # 无 .lrc 文件，回退到 ID3 标签提取
             lrc = extract_lrc_from_mp3(os.path.join(MUSIC_DIR, fname))
             if lrc:
                 conn.execute(
@@ -63,8 +99,15 @@ def _scan_songs_local():
 
 
 def _scan_songs_cloud():
-    from storage import list_cloud_songs, download_from_cloud
+    from storage import list_cloud_songs, list_cloud_lrc_files, download_from_cloud
     filenames = list_cloud_songs()
+    lrc_files = list_cloud_lrc_files()
+    # 构建 lrc 文件映射：base_name(小写) -> lrc 文件名
+    lrc_map = {}
+    for lrc_fname in lrc_files:
+        base = lrc_fname.rsplit('.', 1)[0]
+        lrc_map[base.lower()] = lrc_fname
+
     conn = get_db()
     for fname in filenames:
         existing = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
@@ -88,7 +131,27 @@ def _scan_songs_cloud():
             row = conn.execute("SELECT id FROM songs WHERE filename = ?", (fname,)).fetchone()
             song_id = row['id']
         has_lyrics = conn.execute("SELECT id FROM lyrics WHERE song_id = ?", (song_id,)).fetchone()
-        if not has_lyrics:
+
+        # 检查同名 .lrc 文件
+        mp3_base = fname.rsplit('.', 1)[0]
+        lrc_key = lrc_map.get(mp3_base.lower())
+
+        if lrc_key:
+            # .lrc 文件优先：下载并读取内容写入歌词
+            lrc_content = _download_lrc_content(lrc_key)
+            if lrc_content:
+                if has_lyrics:
+                    conn.execute(
+                        "UPDATE lyrics SET content = ?, updated_at = datetime('now', '+8 hours') WHERE song_id = ?",
+                        (lrc_content, song_id)
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO lyrics (song_id, content) VALUES (?, ?)",
+                        (song_id, lrc_content)
+                    )
+        elif not has_lyrics:
+            # 无 .lrc 文件，回退到 ID3 标签提取
             tmp_path = os.path.join(tempfile.gettempdir(), 'cloud_scan', fname)
             if not os.path.exists(tmp_path):
                 try:
@@ -104,6 +167,23 @@ def _scan_songs_cloud():
     _sync_delete_missing(conn, filenames)
     conn.commit()
     conn.close()
+
+
+def _download_lrc_content(lrc_filename):
+    """从云存储下载 .lrc 文件并返回其文本内容"""
+    from storage import download_from_cloud
+    tmp_path = os.path.join(tempfile.gettempdir(), 'cloud_scan', lrc_filename)
+    try:
+        download_from_cloud(lrc_filename, tmp_path)
+        try:
+            with open(tmp_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+        except UnicodeDecodeError:
+            with open(tmp_path, 'r', encoding='gbk') as f:
+                content = f.read().strip()
+        return content if content else None
+    except Exception:
+        return None
 
 
 def extract_lrc_from_mp3(filepath):
@@ -278,8 +358,15 @@ def get_messages(page=1, per_page=50):
     conn = get_db()
     offset = (page - 1) * per_page
     msgs = conn.execute("""
-        SELECT m.id, m.content, m.created_at, u.nickname, u.id as user_id
-        FROM messages m JOIN users u ON m.user_id = u.id
+        SELECT m.id, m.content, m.reply_to, m.image_url, m.created_at,
+               u.nickname, u.id as user_id,
+               rm.content as reply_content,
+               rm.image_url as reply_image_url,
+               ru.nickname as reply_nickname
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        LEFT JOIN messages rm ON m.reply_to = rm.id
+        LEFT JOIN users ru ON rm.user_id = ru.id
         ORDER BY m.created_at DESC
         LIMIT ? OFFSET ?
     """, (per_page, offset)).fetchall()
@@ -287,17 +374,39 @@ def get_messages(page=1, per_page=50):
     return [dict(m) for m in msgs]
 
 
-def create_message(user_id, content):
+def create_message(user_id, content, reply_to=None, image_url=None):
     conn = get_db()
-    conn.execute("INSERT INTO messages (user_id, content, created_at) VALUES (?, ?, datetime('now', '+8 hours'))", (user_id, content))
+    conn.execute(
+        "INSERT INTO messages (user_id, content, reply_to, image_url, created_at) VALUES (?, ?, ?, ?, datetime('now', '+8 hours'))",
+        (user_id, content, reply_to, image_url)
+    )
     conn.commit()
     msg = conn.execute("""
-        SELECT m.id, m.content, m.created_at, u.nickname, u.id as user_id
+        SELECT m.id, m.content, m.reply_to, m.image_url, m.created_at, u.nickname, u.id as user_id
         FROM messages m JOIN users u ON m.user_id = u.id
         WHERE m.id = last_insert_rowid()
     """).fetchone()
     conn.close()
     return dict(msg) if msg else None
+
+
+def get_message_with_reply(msg_id):
+    """查询单条消息含引用信息，供 Socket.IO 广播用"""
+    conn = get_db()
+    row = conn.execute("""
+        SELECT m.id, m.content, m.reply_to, m.image_url, m.created_at,
+               u.nickname, u.id as user_id,
+               rm.content as reply_content,
+               rm.image_url as reply_image_url,
+               ru.nickname as reply_nickname
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        LEFT JOIN messages rm ON m.reply_to = rm.id
+        LEFT JOIN users ru ON rm.user_id = ru.id
+        WHERE m.id = ?
+    """, (msg_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 # --- Line comment queries ---

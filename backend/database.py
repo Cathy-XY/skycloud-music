@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS messages (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id     INTEGER NOT NULL REFERENCES users(id),
     content     TEXT    NOT NULL,
+    reply_to    INTEGER REFERENCES messages(id),
     created_at  TEXT    NOT NULL DEFAULT (datetime('now', '+8 hours'))
 );
 
@@ -81,4 +82,17 @@ def init_db():
     conn = get_db()
     conn.executescript(SCHEMA)
     conn.commit()
+    # 增量迁移：为已有数据库添加新列
+    _migrate_db(conn)
     conn.close()
+
+
+def _migrate_db(conn):
+    """增量迁移，兼容已有数据库"""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(messages)").fetchall()]
+    if 'reply_to' not in columns:
+        conn.execute("ALTER TABLE messages ADD COLUMN reply_to INTEGER REFERENCES messages(id)")
+        conn.commit()
+    if 'image_url' not in columns:
+        conn.execute("ALTER TABLE messages ADD COLUMN image_url TEXT")
+        conn.commit()

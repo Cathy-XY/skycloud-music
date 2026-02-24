@@ -71,6 +71,15 @@ def list_cloud_songs():
     return []
 
 
+def list_cloud_lrc_files():
+    """列出云存储 bucket 中所有 lrc 歌词文件名"""
+    if STORAGE_TYPE == 'oss':
+        return _list_oss_lrc()
+    elif STORAGE_TYPE == 'bos':
+        return _list_bos_lrc()
+    return []
+
+
 def download_from_cloud(filename, local_path):
     """从云存储下载文件到本地（用于提取歌曲元数据）"""
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -105,6 +114,36 @@ def _list_bos_songs():
         response = client.list_objects(BOS_BUCKET, prefix='', marker=marker, max_keys=1000)
         for obj in response.contents:
             if obj.key.lower().endswith('.mp3'):
+                result.append(obj.key)
+        if not response.is_truncated:
+            break
+        marker = response.next_marker
+    return result
+
+
+def _list_oss_lrc():
+    bucket = _get_oss_bucket()
+    result = []
+    marker = ''
+    while True:
+        resp = bucket.list_objects(prefix='', marker=marker, max_keys=1000)
+        for obj in resp.object_list:
+            if obj.key.lower().endswith('.lrc'):
+                result.append(obj.key)
+        if not resp.is_truncated:
+            break
+        marker = resp.next_marker
+    return result
+
+
+def _list_bos_lrc():
+    client = _get_bos_client()
+    result = []
+    marker = None
+    while True:
+        response = client.list_objects(BOS_BUCKET, prefix='', marker=marker, max_keys=1000)
+        for obj in response.contents:
+            if obj.key.lower().endswith('.lrc'):
                 result.append(obj.key)
         if not response.is_truncated:
             break

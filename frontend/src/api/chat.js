@@ -24,3 +24,12 @@ export async function getMessages(page = 1) {
   const { data } = await api.get('/messages', { params: { page } })
   return data
 }
+
+export async function uploadChatImage(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  const { data } = await api.post('/chat/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return data
+}

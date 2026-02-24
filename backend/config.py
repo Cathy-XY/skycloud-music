@@ -16,6 +16,9 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-prod')
 DATABASE_PATH = os.getenv('DATABASE_PATH', os.path.join(BASE_DIR, 'data', 'music.db'))
 MUSIC_DIR = os.getenv('MUSIC_DIR', os.path.join(os.path.dirname(BASE_DIR), 'music'))
 STORAGE_TYPE = os.getenv('STORAGE_TYPE', 'local')  # 'local', 'oss', 'bos'
+UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
+MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 
 # 对象存储通用配置（适用于 OSS / BOS）
 OSS_AK = os.getenv('OSS_AK', '')

@@ -1,8 +1,11 @@
-from flask import Blueprint, request, jsonify, g
-from models import get_messages, create_message, get_user_by_id
+import os
+import uuid
+from flask import Blueprint, request, jsonify, g, send_from_directory
+from werkzeug.utils import secure_filename
+from models import get_messages, create_message, get_message_with_reply, get_user_by_id
 from routes.auth import login_required
 import jwt
-from config import SECRET_KEY
+from config import SECRET_KEY, UPLOAD_DIR, MAX_IMAGE_SIZE, ALLOWED_IMAGE_EXTENSIONS
 
 chat_bp = Blueprint('chat', __name__)
 
@@ -17,6 +20,10 @@ def _unique_online_count():
     for u in online_users.values():
         seen.add(u['id'])
     return len(seen)
+
+
+def _allowed_image(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
 
 
 def init_socketio(sio):
@@ -61,11 +68,19 @@ def init_socketio(sio):
         if not user:
             return
         content = data.get('content', '').strip()
-        if not content:
+        image_url = data.get('image_url', '').strip() or None
+        if not content and not image_url:
             return
-        msg = create_message(user['id'], content)
+        reply_to = data.get('reply_to')
+        if reply_to is not None:
+            try:
+                reply_to = int(reply_to)
+            except (ValueError, TypeError):
+                reply_to = None
+        msg = create_message(user['id'], content, reply_to=reply_to, image_url=image_url)
         if msg:
-            sio.emit('new_message', msg)
+            full_msg = get_message_with_reply(msg['id'])
+            sio.emit('new_message', full_msg or msg)
 
 
 @chat_bp.route('/messages', methods=['GET'])
@@ -81,7 +96,39 @@ def list_messages():
 def post_message():
     data = request.get_json()
     content = data.get('content', '').strip()
-    if not content:
-        return jsonify({'error': 'Content required'}), 400
-    msg = create_message(g.user_id, content)
+    image_url = data.get('image_url', '').strip() or None
+    if not content and not image_url:
+        return jsonify({'error': 'Content or image required'}), 400
+    reply_to = data.get('reply_to')
+    if reply_to is not None:
+        try:
+            reply_to = int(reply_to)
+        except (ValueError, TypeError):
+            reply_to = None
+    msg = create_message(g.user_id, content, reply_to=reply_to, image_url=image_url)
     return jsonify(msg), 201
+
+
+@chat_bp.route('/chat/upload', methods=['POST'])
+@login_required
+def upload_chat_image():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file'}), 400
+    file = request.files['image']
+    if not file.filename or not _allowed_image(file.filename):
+        return jsonify({'error': 'Invalid image format. Allowed: jpg, png, gif, webp'}), 400
+    file_data = file.read()
+    if len(file_data) > MAX_IMAGE_SIZE:
+        return jsonify({'error': 'Image too large. Max 2MB'}), 413
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    unique_name = f"{uuid.uuid4().hex}.{ext}"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    with open(os.path.join(UPLOAD_DIR, unique_name), 'wb') as f:
+        f.write(file_data)
+    return jsonify({'image_url': unique_name}), 201
+
+
+@chat_bp.route('/uploads/<filename>')
+def serve_upload(filename):
+    safe_name = secure_filename(filename)
+    return send_from_directory(UPLOAD_DIR, safe_name)
