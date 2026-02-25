@@ -266,6 +266,11 @@ a:hover {
   background: rgba(255, 255, 255, 0.2);
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
 }
+.btn-icon.btn-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 /* --- Play Button (3D raised circle, CSS triangle) --- */
 .btn-play {
@@ -1149,9 +1154,24 @@ a:hover {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   transition: background 0.2s;
+  max-width: 85%;
 }
 .chat-msg:hover {
   background: rgba(255, 255, 255, 0.12);
+}
+.chat-msg-self {
+  align-self: flex-end;
+  background: rgba(59, 130, 246, 0.18);
+}
+.chat-msg-self:hover {
+  background: rgba(59, 130, 246, 0.26);
+}
+.chat-msg-self .chat-msg-header {
+  flex-direction: row-reverse;
+}
+.chat-msg-self .reply-hint {
+  margin-left: 0;
+  margin-right: auto;
 }
 .chat-msg strong {
   color: var(--golden);
@@ -1531,6 +1551,19 @@ a:hover {
   vertical-align: middle;
   box-shadow: 0 0 6px rgba(74,222,128,0.8);
   animation: online-pulse 2s infinite;
+}
+.dj-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--golden), #f59e0b);
+  color: #1e293b;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+  vertical-align: middle;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1px 4px rgba(245, 175, 25, 0.4);
 }
 
 /* ---- HomePage header actions ---- */

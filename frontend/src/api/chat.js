@@ -3,14 +3,30 @@ import api from './index.js'
 
 let socket = null
 
-export function connectChat(token) {
-  if (socket) socket.disconnect()
+/**
+ * 返回已连接的 socket，如果不存在或已断开则创建新的。
+ * 不会销毁已连接的 socket —— 这是获取 socket 的唯一入口。
+ */
+export function ensureSocket(token) {
+  if (socket && socket.connected) return socket
+  // socket 存在但已断开，清理后重建
+  if (socket) {
+    socket.removeAllListeners()
+    socket.disconnect()
+    socket = null
+  }
+  if (!token) token = localStorage.getItem('token')
+  if (!token) return null
   socket = io('/', { auth: { token } })
   return socket
 }
 
+/**
+ * 强制断开并清空 socket。仅在登出时调用。
+ */
 export function disconnectChat() {
   if (socket) {
+    socket.removeAllListeners()
     socket.disconnect()
     socket = null
   }

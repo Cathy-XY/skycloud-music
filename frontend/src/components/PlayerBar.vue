@@ -14,7 +14,7 @@
       <span class="player-artist">{{ store.currentSong.artist }}</span>
     </div>
     <div class="player-controls">
-      <button class="btn-icon btn-mode" @click="store.toggleMode()" :title="modeTitle">
+      <button class="btn-icon btn-mode" @click="store.toggleMode()" :title="modeTitle" :disabled="listenStore.isInRoom && !listenStore.isDJ" :class="{ 'btn-disabled': listenStore.isInRoom && !listenStore.isDJ }">
         {{ modeIcon }}
       </button>
       <button class="btn-icon" @click="store.prevSong()">⏮</button>
@@ -77,7 +77,32 @@ function togglePlay() {
 }
 
 function onEnded() {
-  if (store.playMode === 'repeat') {
+  if (listenStore.isInRoom) {
+    if (listenStore.isDJ) {
+      // DJ controls auto-advance based on their play mode
+      if (store.playMode === 'repeat') {
+        if (audioEl.value) {
+          audioEl.value.currentTime = 0
+          audioEl.value.play().catch(() => {})
+        }
+      } else {
+        // sequence or shuffle — DJ advances, sync will broadcast to others
+        const prevSong = store.currentSong
+        store.nextSong()
+        // playlist 只有 1 首歌时 nextSong 不会切歌，手动重播
+        if (store.currentSong === prevSong && audioEl.value) {
+          audioEl.value.currentTime = 0
+          audioEl.value.play().catch(() => {})
+        }
+      }
+    } else {
+      // Non-DJ: loop current song while waiting for DJ's next-song sync
+      if (audioEl.value) {
+        audioEl.value.currentTime = 0
+        audioEl.value.play().catch(() => {})
+      }
+    }
+  } else if (store.playMode === 'repeat') {
     if (audioEl.value) {
       audioEl.value.currentTime = 0
       audioEl.value.play().catch(() => {})

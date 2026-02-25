@@ -12,7 +12,8 @@ from routes.listen_together import listen_bp, init_listen_socketio
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading',
+                    ping_timeout=120, ping_interval=25)
 
 # Register blueprints
 app.register_blueprint(auth_bp, url_prefix='/api/auth')

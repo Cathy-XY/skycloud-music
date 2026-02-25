@@ -12,7 +12,10 @@
         v-for="msg in messages"
         :key="msg.id"
         class="chat-msg"
-        :class="{ 'chat-msg-clickable': userStore.isLoggedIn && msg.nickname !== 'System' }"
+        :class="{
+          'chat-msg-clickable': userStore.isLoggedIn && msg.nickname !== 'System',
+          'chat-msg-self': userStore.user && msg.user_id === userStore.user.id
+        }"
         :data-msg-id="msg.id"
         @click="onMsgClick(msg, $event)"
       >
@@ -88,7 +91,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useUserStore } from '../stores/user.js'
-import { connectChat, disconnectChat, getMessages, uploadChatImage } from '../api/chat.js'
+import { ensureSocket, getMessages, uploadChatImage } from '../api/chat.js'
 
 const userStore = useUserStore()
 const messages = ref([])
@@ -284,39 +287,62 @@ async function sendMessage() {
   })
 }
 
+// Chat-specific event handlers (named so we can remove them on unmount)
+function onNewMessage(msg) {
+  messages.value.push(msg)
+  scrollToBottom()
+}
+function onOnlineCount(data) {
+  onlineCount.value = data.count
+}
+function onUserJoined(data) {
+  messages.value.push({
+    id: Date.now(), nickname: 'System',
+    content: `${data.nickname} joined the chat`,
+    created_at: new Date().toISOString()
+  })
+  scrollToBottom()
+}
+function onUserLeft(data) {
+  messages.value.push({
+    id: Date.now(), nickname: 'System',
+    content: `${data.nickname} left the chat`,
+    created_at: new Date().toISOString()
+  })
+  scrollToBottom()
+}
+function onDjChange(data) {
+  messages.value.push({
+    id: Date.now(), nickname: 'System',
+    content: `🎧 ${data.nickname} 成为了一起听的 DJ`,
+    created_at: new Date().toISOString()
+  })
+  scrollToBottom()
+}
+
 onMounted(async () => {
   await loadHistory()
   if (userStore.isLoggedIn) {
-    socket = connectChat(userStore.token)
-    socket.on('new_message', (msg) => {
-      messages.value.push(msg)
-      scrollToBottom()
-    })
-    socket.on('online_count', (data) => {
-      onlineCount.value = data.count
-    })
-    socket.on('user_joined', (data) => {
-      messages.value.push({
-        id: Date.now(),
-        nickname: 'System',
-        content: `${data.nickname} joined the chat`,
-        created_at: new Date().toISOString()
-      })
-      scrollToBottom()
-    })
-    socket.on('user_left', (data) => {
-      messages.value.push({
-        id: Date.now(),
-        nickname: 'System',
-        content: `${data.nickname} left the chat`,
-        created_at: new Date().toISOString()
-      })
-      scrollToBottom()
-    })
+    socket = ensureSocket(userStore.token)
+    if (!socket) return
+    socket.on('new_message', onNewMessage)
+    socket.on('online_count', onOnlineCount)
+    socket.on('user_joined', onUserJoined)
+    socket.on('user_left', onUserLeft)
+    socket.on('listen_dj_change', onDjChange)
+    // 主动请求在线人数，避免错过 connect 时的广播
+    socket.emit('request_online_count')
   }
 })
 
 onUnmounted(() => {
-  disconnectChat()
+  // 只移除 ChatRoom 自己的监听器，不断开共享 socket
+  if (socket) {
+    socket.off('new_message', onNewMessage)
+    socket.off('online_count', onOnlineCount)
+    socket.off('user_joined', onUserJoined)
+    socket.off('user_left', onUserLeft)
+    socket.off('listen_dj_change', onDjChange)
+  }
 })
 </script>

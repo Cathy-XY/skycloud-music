@@ -61,6 +61,11 @@ def init_socketio(sio):
             sio.emit('user_left', {'nickname': user['nickname']})
             sio.emit('online_count', {'count': _unique_online_count()})
 
+    @sio.on('request_online_count')
+    def handle_request_online_count(data=None):
+        from flask import request as req
+        sio.emit('online_count', {'count': _unique_online_count()}, to=req.sid)
+
     @sio.on('send_message')
     def handle_message(data):
         from flask import request as req

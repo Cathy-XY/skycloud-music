@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { loginApi, registerApi, getMeApi } from '../api/auth.js'
+import { disconnectChat } from '../api/chat.js'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
@@ -22,6 +23,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   function logout() {
+    disconnectChat()
     token.value = ''
     user.value = null
     localStorage.removeItem('token')
