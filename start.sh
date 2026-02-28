@@ -19,7 +19,7 @@ else
 fi
 python app.py &
 BACKEND_PID=$!
-echo "  Backend running on http://localhost:5001 (PID: $BACKEND_PID)"
+echo "  Backend running on http://localhost:5000 (PID: $BACKEND_PID)"
 
 # Start frontend
 echo "[2/2] Starting frontend..."

@@ -20,6 +20,14 @@ UPLOAD_DIR = os.getenv('UPLOAD_DIR', os.path.join(BASE_DIR, 'uploads'))
 MAX_IMAGE_SIZE = 2 * 1024 * 1024  # 2MB
 ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 
+# 数据库类型：'sqlite'（默认单机）或 'mysql'（阿里云 RDS）
+DB_TYPE = os.getenv('DB_TYPE', 'sqlite')
+MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
+MYSQL_PORT = int(os.getenv('MYSQL_PORT', '3306'))
+MYSQL_USER = os.getenv('MYSQL_USER', 'root')
+MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
+MYSQL_DB = os.getenv('MYSQL_DB', 'demo_music')
+
 # 对象存储通用配置（适用于 OSS / BOS）
 OSS_AK = os.getenv('OSS_AK', '')
 OSS_SK = os.getenv('OSS_SK', '')
