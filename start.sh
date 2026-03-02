@@ -17,7 +17,7 @@ if [ ! -d "venv" ]; then
 else
   source venv/bin/activate
 fi
-python app.py &
+python3 app.py &
 BACKEND_PID=$!
 echo "  Backend running on http://localhost:5000 (PID: $BACKEND_PID)"
 
