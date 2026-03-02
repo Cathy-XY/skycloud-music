@@ -49,18 +49,31 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, nextTick, onBeforeUnmount } from 'vue'
+import { ref, watch, computed, nextTick, onBeforeUnmount, onMounted } from 'vue'
 import { usePlayerStore } from '../stores/player.js'
 import { useListenStore } from '../stores/listenTogether.js'
+import { useUserStore } from '../stores/user.js'
 import { getStreamSignedUrl, getStreamUrl } from '../api/songs.js'
+import { ensureSocket, getSocket } from '../api/chat.js'
 
 const store = usePlayerStore()
 const listenStore = useListenStore()
+const userStore = useUserStore()
 const audioEl = ref(null)
 const audioSrc = ref('')
 
 // 用于清理 canplay 监听器，防止事件泄漏
 let cleanupCanplay = null
+// 记录当前 audioSrc 对应的 songId，用于检测后台切歌后 src 是否过期
+let loadedSongId = null
+
+// ---- 一起听：同步相关变量 ----
+let fromRemoteAt = 0
+let heartbeatTimer = null
+
+function isFromRemote() {
+  return performance.now() - fromRemoteAt < 300
+}
 
 const modeIcon = computed(() => {
   const icons = { sequence: '🔁', repeat: '🔂', shuffle: '🔀' }
@@ -206,6 +219,42 @@ function safePlay(el) {
   }
 }
 
+// ---- DJ 心跳 ----
+function startHeartbeat() {
+  stopHeartbeat()
+  heartbeatTimer = setInterval(() => {
+    if (!listenStore.isInRoom || !listenStore.isDJ) { stopHeartbeat(); return }
+    listenStore.syncState({
+      position: store.currentTime,
+      isPlaying: store.isPlaying,
+      action: 'heartbeat',
+    })
+  }, 5000)
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null }
+}
+
+/**
+ * 确保 socket 已连接并返回 Promise
+ */
+function ensureSocketConnected() {
+  return new Promise((resolve) => {
+    const token = localStorage.getItem('token')
+    if (!token) { resolve(null); return }
+    const sock = ensureSocket(token)
+    if (!sock) { resolve(null); return }
+    if (sock.connected) {
+      resolve(sock)
+    } else {
+      sock.once('connect', () => resolve(sock))
+    }
+  })
+}
+
+// ---- audio 播放控制 watchers ----
+
 watch(() => store.isPlaying, (playing) => {
   nextTick(() => {
     if (!audioEl.value) return
@@ -224,8 +273,9 @@ watch(() => store.currentSong, async (song) => {
     cleanupCanplay = null
   }
 
-  if (!song) { audioSrc.value = ''; return }
+  if (!song) { audioSrc.value = ''; loadedSongId = null; return }
 
+  loadedSongId = song.id
   try {
     const url = await getStreamSignedUrl(song.id)
     audioSrc.value = url
@@ -247,18 +297,146 @@ watch(() => store.volume, (v) => {
   if (audioEl.value) audioEl.value.volume = v
 })
 
-// 一起听：远端 seek 同步到 audio 元素
-watch(() => listenStore.roomState?.position, (pos) => {
-  if (!listenStore.isInRoom || pos == null || !audioEl.value) return
-  if (Math.abs(pos - audioEl.value.currentTime) > 2) {
-    audioEl.value.currentTime = pos
+// ---- 一起听：local -> remote sync ----
+
+watch(() => store.currentSong, (song) => {
+  if (!listenStore.isInRoom || isFromRemote() || !song) return
+  listenStore.syncState({
+    songId: song.id,
+    songData: { id: song.id, title: song.title, artist: song.artist, filename: song.filename, duration: song.duration },
+    isPlaying: store.isPlaying,
+    position: 0,
+    action: 'switch',
+  })
+})
+
+watch(() => store.isPlaying, (playing) => {
+  if (!listenStore.isInRoom || isFromRemote()) return
+  listenStore.syncState({
+    isPlaying: playing,
+    position: store.currentTime,
+    action: playing ? 'play' : 'pause',
+  })
+})
+
+// ---- 一起听：remote -> local sync ----
+
+watch(() => listenStore.roomState, (state) => {
+  if (!state || !listenStore.isInRoom) return
+
+  fromRemoteAt = performance.now()
+
+  if (state.songId && state.songData && store.currentSong?.id !== state.songId) {
+    store.playSong(state.songData)
   }
+
+  if (state.isPlaying !== undefined && state.isPlaying !== store.isPlaying) {
+    store.isPlaying = state.isPlaying
+  }
+
+  if (state.position !== undefined && Math.abs((state.position || 0) - store.currentTime) > 2) {
+    store.currentTime = state.position || 0
+  }
+}, { deep: true })
+
+// 一起听：远端状态同步到 audio 元素（位置 + 确保播放状态一致）
+watch(() => listenStore.roomState, (state) => {
+  if (!listenStore.isInRoom || !state || !audioEl.value) return
+  // 位置纠偏
+  if (state.position != null && Math.abs(state.position - audioEl.value.currentTime) > 2) {
+    audioEl.value.currentTime = state.position
+  }
+  // 如果 store 认为在播放但 audio 实际暂停了（后台 autoplay 被拒），重新播放
+  if (store.isPlaying && audioEl.value.paused) {
+    safePlay(audioEl.value)
+  }
+}, { deep: true })
+
+// DJ 心跳 watcher
+watch([() => listenStore.isInRoom, () => listenStore.isDJ], ([inRoom, isDJ]) => {
+  if (inRoom && isDJ) {
+    startHeartbeat()
+  } else {
+    stopHeartbeat()
+  }
+})
+
+// 加入房间时，非 DJ 强制 repeat 模式
+watch(() => listenStore.isInRoom, (inRoom) => {
+  if (!inRoom) return
+  if (!listenStore.isDJ) {
+    store.playMode = 'repeat'
+  }
+})
+
+// ---- onMounted: setup socket listeners + visibility handler ----
+
+let _visHandler = null
+
+onMounted(() => {
+  // 初始化一起听 socket listeners（如果 socket 已连接且用户已登录）
+  const sock = getSocket()
+  if (sock && userStore.user) {
+    listenStore.setupListeners(userStore.user.id)
+  }
+
+  // visibilitychange：回前台时 rejoin + 确保 audio 正确
+  _visHandler = async () => {
+    if (document.visibilityState !== 'visible') return
+    if (!listenStore.isInRoom) return
+
+    // 1) Socket rejoin：刷新房间状态
+    const s = getSocket()
+    if (s && s.connected) {
+      s.emit('listen_join')
+    } else {
+      const newSock = await ensureSocketConnected()
+      if (newSock) {
+        listenStore.cleanupListeners()
+        listenStore.setupListeners(userStore.user?.id)
+        newSock.emit('listen_join')
+      }
+    }
+
+    // 2) Audio 恢复：确保加载了正确的歌曲并播放
+    if (!audioEl.value || !store.currentSong) return
+
+    if (loadedSongId !== store.currentSong.id) {
+      loadedSongId = store.currentSong.id
+      try {
+        audioSrc.value = await getStreamSignedUrl(store.currentSong.id)
+      } catch {
+        audioSrc.value = getStreamUrl(store.currentSong.id)
+      }
+      await nextTick()
+      if (audioEl.value) {
+        audioEl.value.load()
+      }
+    }
+
+    await nextTick()
+    if (!audioEl.value) return
+    const state = listenStore.roomState
+    if (state?.position != null && Math.abs(state.position - audioEl.value.currentTime) > 2) {
+      audioEl.value.currentTime = state.position
+    }
+    if (store.isPlaying && audioEl.value.paused) {
+      safePlay(audioEl.value)
+    }
+  }
+  document.addEventListener('visibilitychange', _visHandler)
 })
 
 onBeforeUnmount(() => {
   if (cleanupCanplay) {
     cleanupCanplay()
     cleanupCanplay = null
+  }
+  stopHeartbeat()
+  listenStore.cleanupListeners()
+  if (_visHandler) {
+    document.removeEventListener('visibilitychange', _visHandler)
+    _visHandler = null
   }
 })
 </script>
